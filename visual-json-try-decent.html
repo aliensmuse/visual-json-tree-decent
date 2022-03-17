@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+
+    <title>Tree Example</title>
+
+    <style>
+	body {
+		background-color: rgb(85, 84, 84);
+	}
+	h1 {
+		color:rgb(198, 216, 216)
+	}
+	.node {
+		cursor: pointer;
+	}
+
+	.node circle {
+	  fill: #fff;
+	  stroke: steelblue;
+	  stroke-width: 3px;
+	}
+
+
+	.link {
+	  fill: none;
+	  stroke: #ccc;
+	  stroke-width: 3px;
+	}
+	
+	.borderRadius {
+		border:1px solid #c3c4c5; background:  #c3c4c5; border-radius:15px;-moz-border-radius:15px; -webkit-border-radius:15px; 
+		position: fixed;
+		bottom: 0;
+		right: 0;
+		width: 300px;
+		z-index: 999;
+	}
+	
+	.header {background: none repeat scroll 0 0 #2a2e31;
+		height: 75px;
+		position: fixed;
+		top: 0;
+		left: 0;
+		width: 100%;
+	}
+
+	.explorerheader { background: none repeat scroll 0 0 #266aad;height: 25px;padding: 4px 10px 0;text-align: left; border-top-right-radius:15px;border-top-left-radius:15px;}
+	.content{ width:auto; padding: 4px 10px 4px 10px;text-align: left;}
+
+    </style>
+    <script src="./json-path-tree.js"></script>	
+  </head>
+
+  <body>
+
+	<div id="header" class="header">
+		<h1>Visual JSON Tree Decent</h1> 
+	</div>
+	<div id="treecontrol"></div>
+	<div class="borderRadius">
+		<div class="explorerheader">Object Mapper</div>
+		<div id="objectview" class="content">Nothing Selected</div>
+		<div id="mapitem" class="content">
+			<hr>
+			<select>
+				<option>-- Select a mapping --</option>
+				<option>First Name</option>
+				<option>Last Name</option>
+				<option>DOB</option>
+			</select>
+			<button>Add Mapping</button>
+		</div>
+    </div>
+	<div id="footer"><h5>By Casey Riley</h5></div>
+
+	<!-- load the d3.js library -->	
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.17/d3.min.js"></script>
+
+<script>
+
+var treeData =[];
+
+/*********************************************************
+ *  JSON BLOCK TO MAP - replace with any JSON source
+ ********************************************************/
+var o = { "store": {
+        "book": [ 
+        { "category": "reference",
+            "author": "Nigel Rees",
+            "title": "Sayings of the Century",
+            "price": 8.95
+        },
+        { "category": "fiction",
+            "author": "Evelyn Waugh",
+            "title": "Sword of Honour",
+            "price": 12.99
+        },
+        { "category": "fiction",
+            "author": "Herman Melville",
+            "title": "Moby Dick",
+            "isbn": "0-553-21311-3",
+            "price": 8.99
+        },
+        { "category": "fiction",
+            "author": "J. R. R. Tolkien",
+            "title": "The Lord of the Rings",
+            "isbn": "0-395-19395-8",
+            "price": 22.99
+        }
+        ],
+        "bicycle": {
+        "color": "red",
+        "price": 19.95
+        }
+    }
+    };
+    
+    treeData.push( checkChildren(o, 0, "$" ) );
+
+
+// ************** Generate the tree diagram	 *****************
+var margin = {top: 100, right: 120, bottom: 20, left: 120},
+	width = 960 - margin.right - margin.left,
+	height = 800 - margin.top - margin.bottom;
+	
+var i = 0,
+	duration = 750,
+	root;
+
+var tree = d3.layout.tree()
+	.size([height, width]);
+
+var diagonal = d3.svg.diagonal()
+	.projection(function(d) { return [d.y, d.x]; });
+
+var svg = d3.select("#treecontrol").append("svg")
+	.attr("width", width + margin.right + margin.left)
+	.attr("height", height + margin.top + margin.bottom)
+    .append("g")
+	.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+root = treeData[0];
+root.x0 = height / 2;
+root.y0 = 0;
+  
+update(root);
+
+d3.select(self.frameElement).style("height", "500px");
+
+function update(source) {
+
+  // Compute the new tree layout.
+  var nodes = tree.nodes(root).reverse(),
+	  links = tree.links(nodes);
+
+  // Normalize for fixed-depth.
+  nodes.forEach(function(d) { d.y = d.depth * 180; });
+
+  // Update the nodes…
+  var node = svg.selectAll("g.node")
+	  .data(nodes, function(d) { return d.id || (d.id = ++i); });
+
+  // Enter any new nodes at the parent's previous position.
+  var nodeEnter = node.enter().append("g")
+	  .attr("class", "node")
+	  .attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
+	  .on("click", click)
+	  .on("mouseover", function(d) {
+          var g = d3.select(this); // The node
+          // The class is used to remove the additional text later
+          var info = g.append('text')
+            .classed('info', true)
+            .attr('x', function(d) { return d.children || d._children ? -13 : 13; })
+			.attr("dy", ".35em")
+			.attr('fill','WHITE')
+			.attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
+            .text(function(d) { return d.name; });
+        })
+        .on("mouseout", function() {
+          // Remove the info text on mouse out.
+          d3.select(this).select('text.info').remove();
+        });
+
+  nodeEnter.append("circle")
+	  .attr("r", 1e-6)
+	  .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+
+  nodeEnter.append("text")
+	  .attr("x", function(d) { return d.children || d._children ? -13 : 13; })
+	  .attr("dy", ".35em")
+	  .attr("text-anchor", function(d) { return d.children || d._children ? "end" : "start"; })
+	  .text(function(d) { return d.name; })
+	  .style("fill-opacity", 1e-6);
+
+  // Transition nodes to their new position.
+  var nodeUpdate = node.transition()
+	  .duration(duration)
+	  .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
+
+  nodeUpdate.select("circle")
+	  .attr("r", 10)
+	  .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+
+  nodeUpdate.select("text")
+	  .style("fill-opacity", 1);
+
+  // Transition exiting nodes to the parent's new position.
+  var nodeExit = node.exit().transition()
+	  .duration(duration)
+	  .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
+	  .remove();
+
+  nodeExit.select("circle")
+	  .attr("r", 1e-6);
+
+  nodeExit.select("text")
+	  .style("fill-opacity", 1e-6);
+
+  // Update the links…
+  var link = svg.selectAll("path.link")
+	  .data(links, function(d) { return d.target.id; });
+
+  // Enter any new links at the parent's previous position.
+  link.enter().insert("path", "g")
+	  .attr("class", "link")
+	  .attr("d", function(d) {
+		var o = {x: source.x0, y: source.y0};
+		return diagonal({source: o, target: o});
+	  });
+
+  // Transition links to their new position.
+  link.transition()
+	  .duration(duration)
+	  .attr("d", diagonal);
+
+  // Transition exiting nodes to the parent's new position.
+  link.exit().transition()
+	  .duration(duration)
+	  .attr("d", function(d) {
+		var o = {x: source.x, y: source.y};
+		return diagonal({source: o, target: o});
+	  })
+	  .remove();
+
+  // Stash the old positions for transition.
+  nodes.forEach(function(d) {
+	d.x0 = d.x;
+	d.y0 = d.y;
+  });
+}
+
+// Toggle children on click.
+function click(d) {
+  if (d.children) {
+	d._children = d.children;
+	d.children = null;
+  } else {
+	d.children = d._children;
+	d._children = null;
+  }
+  update(d);
+  objectView(d);
+}
+
+function objectView(obj) {
+	var name = obj.name,
+	    path = obj.path,
+		type = obj.type,
+		value = (obj.type == "(Property)") ? obj.value : "no value" ;
+
+	document.getElementById("objectview").innerHTML = "Name: " + name + "<br> Path: " + path + "<br> Type: " + type + "<br> Value: " + value;
+}
+
+</script>
+	
+  </body>
+</html>
